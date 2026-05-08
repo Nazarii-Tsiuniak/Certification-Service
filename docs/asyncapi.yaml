@@ -1,0 +1,33 @@
+﻿asyncapi: 2.6.0
+info:
+  title: Certification Service Events
+  version: 1.0.0
+  description: Async contract for consuming course completion events.
+servers:
+  rabbitmq:
+    url: amqp://localhost:5672
+    protocol: amqp
+channels:
+  course.events:
+    subscribe:
+      operationId: consumeCourseCompleted
+      summary: Consume a course completion event and issue a certificate
+      message:
+        $ref: '#/components/messages/CourseCompleted'
+components:
+  messages:
+    CourseCompleted:
+      name: CourseCompleted
+      title: Course Completed Event
+      payload:
+        type: object
+        properties:
+          user_id:
+            type: string
+            format: uuid
+          course_id:
+            type: string
+            format: uuid
+        required:
+          - user_id
+          - course_id

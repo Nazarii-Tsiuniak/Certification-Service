@@ -1,0 +1,101 @@
+﻿name: cert_service_local
+
+services:
+  certification-service:
+    build: .
+    container_name: certification-service
+    restart: on-failure
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://cert_user:cert_pass@postgres:5432/certdb
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_QUEUE: course.events
+      S3_ENDPOINT_URL: http://localstack:4566
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: test
+      S3_SECRET_KEY: test
+      S3_BUCKET: certificates
+      JWT_SECRET: super-secret
+      JWT_ALGORITHM: HS256
+      STUDENT_SERVICE_URL: http://student-service:8000
+      COURSE_SERVICE_URL: http://course-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+
+  certification-worker:
+    build: .
+    container_name: certification-worker
+    restart: on-failure
+    command: ["python", "-m", "app.worker.consumer"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://cert_user:cert_pass@postgres:5432/certdb
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_QUEUE: course.events
+      S3_ENDPOINT_URL: http://localstack:4566
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: test
+      S3_SECRET_KEY: test
+      S3_BUCKET: certificates
+      JWT_SECRET: super-secret
+      JWT_ALGORITHM: HS256
+      STUDENT_SERVICE_URL: http://student-service:8000
+      COURSE_SERVICE_URL: http://course-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+
+  postgres:
+    image: postgres:16
+    container_name: certdb
+    environment:
+      POSTGRES_DB: certdb
+      POSTGRES_USER: cert_user
+      POSTGRES_PASSWORD: cert_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cert_user -d certdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  localstack:
+    image: localstack/localstack:3.7
+    container_name: localstack
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+
+volumes:
+  postgres_data:
+  localstack_data:

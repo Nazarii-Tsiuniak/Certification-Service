@@ -1,0 +1,91 @@
+﻿openapi: 3.0.3
+info:
+  title: Certification Service API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+paths:
+  /api/v1/certificates/verify/{uuid}:
+    get:
+      summary: Verify certificate by UUID
+      tags: [certificates-public]
+      parameters:
+        - in: path
+          name: uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Certificate metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateVerificationResponse'
+        '404':
+          description: Certificate not found
+  /api/v1/certificates/{id}/download:
+    get:
+      summary: Get a presigned download URL for certificate PDF
+      tags: [certificates-private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Presigned download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadUrlResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Certificate not found
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CertificateVerificationResponse:
+      type: object
+      properties:
+        certificate_uuid:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        student_name:
+          type: string
+        course_title:
+          type: string
+        issued_at:
+          type: string
+          format: date-time
+      required: [certificate_uuid, user_id, course_id, student_name, course_title, issued_at]
+    DownloadUrlResponse:
+      type: object
+      properties:
+        certificate_id:
+          type: string
+          format: uuid
+        download_url:
+          type: string
+        expires_in_seconds:
+          type: integer
+      required: [certificate_id, download_url, expires_in_seconds]
