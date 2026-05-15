@@ -1,12 +1,12 @@
-﻿import json
+import json
 import time
-import uuid
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
+from pydantic import TypeAdapter
 
 from app.core.config import settings
-from app.domain.schemas import CourseCompletedEvent
+from app.domain.schemas import LifecycleEvent
 from app.infrastructure.db import SessionLocal
 from app.services.dependencies import get_certification_service
 
@@ -16,6 +16,7 @@ class CourseCompletedConsumer:
         self.connection = self._connect_with_retry()
         self.channel: BlockingChannel = self.connection.channel()
         self.channel.queue_declare(queue=settings.rabbitmq_queue, durable=True)
+        self._lifecycle_adapter = TypeAdapter(LifecycleEvent)
 
     def _connect_with_retry(self):
         last_error = None
@@ -27,17 +28,19 @@ class CourseCompletedConsumer:
                 time.sleep(2)
         raise last_error
 
+    def _parse_event(self, payload: dict) -> LifecycleEvent:
+        if "event_type" not in payload:
+            payload = {"event_type": "course.completed", **payload}
+        return self._lifecycle_adapter.validate_python(payload)
+
     def on_message(self, ch, method, properties, body):
         payload = json.loads(body)
-        event = CourseCompletedEvent(**payload)
+        event = self._parse_event(payload)
 
         db = SessionLocal()
         try:
             service = get_certification_service(db)
-            service.issue_from_course_completed(
-                user_id=uuid.UUID(str(event.user_id)),
-                course_id=uuid.UUID(str(event.course_id)),
-            )
+            service.handle_lifecycle_event(event)
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception:
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)

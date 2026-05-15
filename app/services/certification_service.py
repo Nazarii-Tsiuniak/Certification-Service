@@ -1,10 +1,12 @@
-﻿import uuid
+import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.domain.models import Certificate
+from app.domain.schemas import LifecycleEvent
 from app.infrastructure.external_clients import CourseClient, StudentClient
 from app.infrastructure.pdf_generator import PdfGenerator
 from app.infrastructure.repository import CertificateRepository
@@ -52,6 +54,20 @@ class CertificationService:
             pdf_s3_key=s3_key,
         )
         return self.repository.create(certificate)
+
+    def handle_lifecycle_event(self, event: LifecycleEvent) -> dict[str, Any]:
+        if event.event_type == "course.completed":
+            cert = self.issue_from_course_completed(
+                user_id=event.user_id,
+                course_id=event.course_id,
+            )
+            return {
+                "status": "processed",
+                "event_type": event.event_type,
+                "certificate_id": str(cert.id),
+            }
+
+        return {"status": "processed", "event_type": event.event_type}
 
     def verify_certificate(self, certificate_uuid: uuid.UUID) -> Certificate:
         certificate = self.repository.get_by_certificate_uuid(certificate_uuid)

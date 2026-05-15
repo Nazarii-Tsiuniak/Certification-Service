@@ -1,4 +1,4 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: Certification Service API
   version: 1.0.0
@@ -51,6 +51,31 @@ paths:
           description: Forbidden
         '404':
           description: Certificate not found
+  /api/v1/events/lifecycle:
+    post:
+      summary: Ingest lifecycle event
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/UserOnboardedEvent'
+                - $ref: '#/components/schemas/UserDetailsUpdatedEvent'
+                - $ref: '#/components/schemas/CourseStartedEvent'
+                - $ref: '#/components/schemas/CourseIntermediateControlPassedEvent'
+                - $ref: '#/components/schemas/CourseUpdatedEvent'
+                - $ref: '#/components/schemas/CourseCompletedLifecycleEvent'
+              discriminator:
+                propertyName: event_type
+      responses:
+        '202':
+          description: Event accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventIngestResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -89,3 +114,120 @@ components:
         expires_in_seconds:
           type: integer
       required: [certificate_id, download_url, expires_in_seconds]
+    EventIngestResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        event_type:
+          type: string
+        certificate_id:
+          type: string
+          format: uuid
+          nullable: true
+      required: [status, event_type]
+    UserOnboardedEvent:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum: [user.onboarded]
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        registered_at:
+          type: string
+          format: date-time
+      required: [event_type, user_id, email, full_name, registered_at]
+    UserDetailsUpdatedEvent:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum: [user.details.updated]
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required: [event_type, user_id, updated_at]
+    CourseStartedEvent:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum: [course.started]
+        user_id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
+      required: [event_type, user_id, course_id, started_at]
+    CourseIntermediateControlPassedEvent:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum: [course.intermediate_control.passed]
+        user_id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        control_id:
+          type: string
+          format: uuid
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+        passed_at:
+          type: string
+          format: date-time
+      required: [event_type, user_id, course_id, control_id, score, passed_at]
+    CourseUpdatedEvent:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum: [course.updated]
+        course_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required: [event_type, course_id, updated_at]
+    CourseCompletedLifecycleEvent:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum: [course.completed]
+        user_id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+      required: [event_type, user_id, course_id]

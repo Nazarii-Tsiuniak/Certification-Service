@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.v1.events_routes import events_router
 from app.api.v1.private_routes import private_router
 from app.api.v1.public_routes import public_router
 from app.core.config import settings
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Certification Service", version="1.0.0", lifespan=lifespan)
 app.include_router(public_router)
 app.include_router(private_router)
+app.include_router(events_router)
 
 
 @app.get("/health", tags=["health"])

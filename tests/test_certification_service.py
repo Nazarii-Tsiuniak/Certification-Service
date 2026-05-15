@@ -5,6 +5,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.services.certification_service import CertificationService
+from app.domain.schemas import CourseCompletedLifecycleEvent, UserOnboardedEvent
 
 
 class FakeRepo:
@@ -110,3 +111,33 @@ def test_get_download_url_forbidden(service):
     with pytest.raises(HTTPException) as exc:
         svc.get_download_url(cert.id, uuid.uuid4())
     assert exc.value.status_code == 403
+
+
+def test_handle_lifecycle_event_course_completed_creates_certificate(service):
+    svc, _, _ = service
+    event = CourseCompletedLifecycleEvent(
+        event_type="course.completed",
+        user_id=uuid.uuid4(),
+        course_id=uuid.uuid4(),
+    )
+
+    result = svc.handle_lifecycle_event(event)
+
+    assert result["status"] == "processed"
+    assert result["event_type"] == "course.completed"
+    assert "certificate_id" in result
+
+
+def test_handle_lifecycle_event_non_certificate_event(service):
+    svc, _, _ = service
+    event = UserOnboardedEvent(
+        event_type="user.onboarded",
+        user_id=uuid.uuid4(),
+        email="new.user@example.com",
+        full_name="New User",
+        registered_at=datetime.now(timezone.utc),
+    )
+
+    result = svc.handle_lifecycle_event(event)
+
+    assert result == {"status": "processed", "event_type": "user.onboarded"}
