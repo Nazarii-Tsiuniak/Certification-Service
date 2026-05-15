@@ -2,20 +2,145 @@
 info:
   title: Certification Service Events
   version: 1.0.0
-  description: Async contract for consuming course completion events.
+  description: Async contract for consuming user and course lifecycle events.
 servers:
   rabbitmq:
     url: amqp://localhost:5672
     protocol: amqp
 channels:
+  user.events:
+    subscribe:
+      operationId: consumeUserEvents
+      summary: Consume user onboarding and profile update events
+      message:
+        oneOf:
+          - $ref: '#/components/messages/UserOnboarded'
+          - $ref: '#/components/messages/UserDetailsUpdated'
   course.events:
     subscribe:
-      operationId: consumeCourseCompleted
-      summary: Consume a course completion event and issue a certificate
+      operationId: consumeCourseEvents
+      summary: Consume course lifecycle and progress events
       message:
-        $ref: '#/components/messages/CourseCompleted'
+        oneOf:
+          - $ref: '#/components/messages/CourseStarted'
+          - $ref: '#/components/messages/CourseIntermediateControlPassed'
+          - $ref: '#/components/messages/CourseUpdated'
+          - $ref: '#/components/messages/CourseCompleted'
 components:
   messages:
+    UserOnboarded:
+      name: UserOnboarded
+      title: User Onboarded Event
+      payload:
+        type: object
+        properties:
+          user_id:
+            type: string
+            format: uuid
+          email:
+            type: string
+            format: email
+          full_name:
+            type: string
+          registered_at:
+            type: string
+            format: date-time
+        required:
+          - user_id
+          - email
+          - full_name
+          - registered_at
+
+    UserDetailsUpdated:
+      name: UserDetailsUpdated
+      title: User Details Updated Event
+      payload:
+        type: object
+        properties:
+          user_id:
+            type: string
+            format: uuid
+          email:
+            type: string
+            format: email
+          full_name:
+            type: string
+          updated_at:
+            type: string
+            format: date-time
+        required:
+          - user_id
+          - updated_at
+
+    CourseStarted:
+      name: CourseStarted
+      title: Course Started Event
+      payload:
+        type: object
+        properties:
+          user_id:
+            type: string
+            format: uuid
+          course_id:
+            type: string
+            format: uuid
+          started_at:
+            type: string
+            format: date-time
+        required:
+          - user_id
+          - course_id
+          - started_at
+
+    CourseIntermediateControlPassed:
+      name: CourseIntermediateControlPassed
+      title: Course Intermediate Control Passed Event
+      payload:
+        type: object
+        properties:
+          user_id:
+            type: string
+            format: uuid
+          course_id:
+            type: string
+            format: uuid
+          control_id:
+            type: string
+            format: uuid
+          score:
+            type: number
+            minimum: 0
+            maximum: 100
+          passed_at:
+            type: string
+            format: date-time
+        required:
+          - user_id
+          - course_id
+          - control_id
+          - score
+          - passed_at
+
+    CourseUpdated:
+      name: CourseUpdated
+      title: Course Updated Event
+      payload:
+        type: object
+        properties:
+          course_id:
+            type: string
+            format: uuid
+          title:
+            type: string
+          description:
+            type: string
+          updated_at:
+            type: string
+            format: date-time
+        required:
+          - course_id
+          - updated_at
+
     CourseCompleted:
       name: CourseCompleted
       title: Course Completed Event
